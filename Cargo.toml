@@ -1,5 +1,5 @@
 [package]
-name = "lab4-chatroom"
+name = "chatroom"
 version = "0.1.0"
 authors = ["Nathan Robinson <nrobinson2000@me.com>"]
 edition = "2018"
