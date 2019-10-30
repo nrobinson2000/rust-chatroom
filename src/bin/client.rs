@@ -4,6 +4,7 @@ use std::io;
 use std::io::stdin;
 use std::str;
 use std::borrow::Cow;
+use chatroom::ThreadPool;
 
 
 fn main() {
@@ -13,6 +14,25 @@ fn main() {
 //    stdin().read_line(&mut input).expect("error: unable to read user input");
 //
 //    println!("{}", input);
+
+    // Client needs to be multi threaded too
+
+    // One thread for sending, one thread for receiving
+
+    // One worker for sending
+    // One worker for receiving
+//    let pool = ThreadPool::new(2);
+//
+//    pool.execute(|| {
+//
+//
+//
+//        //handle_connection(stream);
+//
+//
+//
+//    });
+
 
     let host = "127.0.0.1";
     let port = "7878";
