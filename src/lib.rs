@@ -1,5 +1,9 @@
 use std::sync::{mpsc, Arc, Mutex};
-use std::thread;
+use std::{thread, io};
+
+use std::collections::VecDeque;
+use std::net::TcpStream;
+use std::io::{BufReader, BufWriter};
 
 pub struct ThreadPool {
     workers: Vec<Worker>,
@@ -47,16 +51,19 @@ impl ThreadPool {
 
 impl Drop for ThreadPool {
     fn drop(&mut self) {
-        println!("Sending terminate message to all workers.");
+        // DEBUG
+        //println!("Sending terminate message to all workers.");
 
         for _ in &mut self.workers {
             self.sender.send(Message::Terminate).unwrap();
         }
-
-        println!("Shutting down all workers.");
+        // DEBUG
+        //println!("Shutting down all workers.");
 
         for worker in &mut self.workers {
-            println!("Shutting down worker {}", worker.id);
+
+            // DEBUG
+            //println!("Shutting down worker {}", worker.id);
 
             if let Some(thread) = worker.thread.take() {
                 thread.join().unwrap();
@@ -73,25 +80,25 @@ struct Worker {
 impl Worker {
     fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Message>>>) ->
     Worker {
-
-        let thread = thread::spawn(move ||{
+        let thread = thread::spawn(move || {
             loop {
                 let message = receiver.lock().unwrap().recv().unwrap();
 
                 match message {
                     Message::NewJob(job) => {
-                       // println!("Worker {} got a job; executing.", id);
+                        // println!("Worker {} got a job; executing.", id);
 
                         job.call_box();
 
 
                         //println!("Worker {} completed job", id);
-                    },
+                    }
                     Message::Terminate => {
-                        println!("Worker {} was told to terminate.", id);
+                        // DEBUG
+                        // println!("Worker {} was told to terminate.", id);
 
                         break;
-                    },
+                    }
                 }
             }
         });
@@ -106,4 +113,97 @@ impl Worker {
 enum Message {
     NewJob(Job),
     Terminate,
+}
+
+
+// Struct and implementation of ChatMessage
+
+pub struct ChatMessage {
+    username: String,
+    message: String,
+}
+
+impl ChatMessage {
+    // Constructor
+    pub fn new(username: String, message: String) -> ChatMessage {
+        ChatMessage { username, message }
+    }
+
+    pub fn getUsername(self) -> String {
+        self.username
+    }
+    pub fn getMessage(self) -> String {
+        self.message
+    }
+}
+
+impl Clone for ChatMessage
+    where String: Clone {
+    fn clone(&self) -> Self {
+        ChatMessage { username: self.username.clone(), message: self.message.clone() }
+    }
+}
+
+//impl Copy for ChatMessage
+//where str : Copy {
+//
+//}
+
+// Use a queue to hold ChatMessages
+pub struct ChatQueue {
+    queue: VecDeque<ChatMessage>
+}
+
+impl ChatQueue {
+    pub fn new() -> ChatQueue {
+        ChatQueue { queue: VecDeque::new() }
+    }
+
+    pub fn enqueue(&mut self, message: ChatMessage) {
+        self.queue.push_back(message);
+    }
+
+    pub fn dequeue(&mut self) -> ChatMessage {
+        self.queue.pop_front().unwrap()
+    }
+
+    pub fn getFront(&mut self) -> &ChatMessage {
+        self.queue.front().unwrap()
+    }
+
+    pub fn clear(&mut self) {
+        self.queue.clear();
+    }
+
+    pub fn isEmpty(&mut self) -> bool {
+        self.queue.is_empty()
+    }
+}
+
+impl Clone for ChatQueue
+    where VecDeque<ChatMessage>: Clone {
+    fn clone(&self) -> Self {
+        ChatQueue { queue: self.queue.clone() }
+    }
+}
+
+// Stream with username
+//#[derive (Clone)]
+pub struct UserStream {
+    stream: TcpStream,
+    username: String,
+}
+
+impl UserStream {
+    pub fn new(stream: TcpStream, username: String) -> UserStream {
+        UserStream { stream, username }
+    }
+
+    pub fn getStream(&self) -> &TcpStream {
+        &self.stream
+    }
+
+    pub fn getUsername(self) -> String {
+        self.username
+    }
 }

@@ -34,23 +34,67 @@ fn main() {
 //    });
 
 
+    // Create socket connection
     let host = "127.0.0.1";
     let port = "7878";
-
     let address = host.to_owned() + ":" + port;
-
     let mut stream = TcpStream::connect(address).unwrap();
 
+    // Get welcome message from server
     readFromServer(&stream);
 
-
+    // Get the username
     let mut name = String::new();
     stdin().read_line(&mut name).expect("error: unable to read user input");
 
+    // Send the username to the server
     sendToServer(&stream, &mut name);
 
+    // Get hello message from the server
     readFromServer(&stream);
 
+    // Reserve two threads for reading and writing
+    let pool = ThreadPool::new(2);
+
+//    let read_stream = stream.try_clone().unwrap();
+//
+//    // Spawn reading thread
+//    pool.execute(move || {
+//        read_handler(&read_stream);
+//    });
+
+    let write_stream = stream.try_clone().unwrap();
+
+    // Spawn writing thread
+    pool.execute(move || {
+        write_handler(&write_stream);
+    });
+
+
+//    loop {
+//        let mut user_message = String::new();
+//        stdin().read_line(&mut user_message).expect("error: unable to read user input");
+//        sendToServer(&mut stream, &mut user_message);
+//        if user_message.trim() == String::from("{quit}") {
+//            println!("Quitting!");
+//            break;
+//        }
+//    }
+
+
+//    println!("Hello world!");
+}
+
+fn read_handler(mut stream: &TcpStream) {
+    loop {
+        readFromServer(&stream);
+    }
+}
+
+// Get messages from the user and write to the stream
+fn write_handler(mut stream: &TcpStream) {
+    // DEBUG
+    //println!("Test!");
     loop {
         let mut user_message = String::new();
         stdin().read_line(&mut user_message).expect("error: unable to read user input");
@@ -60,12 +104,10 @@ fn main() {
             break;
         }
     }
-
-
-//    println!("Hello world!");
 }
 
-fn readFromServer(mut stream: &TcpStream) {
+
+fn readFromServer(mut stream: &TcpStream) -> String {
     let mut buffer = [0u8; 1024];
 
     stream.read(&mut buffer);
@@ -77,6 +119,8 @@ fn readFromServer(mut stream: &TcpStream) {
     input.retain(|c| c != '\0');
 
     println!("{}", input);
+
+    input
 }
 
 
