@@ -1,9 +1,12 @@
+// Lab 4: Chatroom
+// Author: Nathan Robinson
+// Chat Library
+
 use std::sync::{mpsc, Arc, Mutex};
-use std::{thread, io};
+use std::thread;
 
 use std::collections::VecDeque;
 use std::net::TcpStream;
-use std::io::{BufReader, BufWriter};
 
 pub struct ThreadPool {
     workers: Vec<Worker>,
@@ -115,9 +118,8 @@ enum Message {
     Terminate,
 }
 
-
 // Struct and implementation of ChatMessage
-
+#[derive(Clone)]
 pub struct ChatMessage {
     username: String,
     message: String,
@@ -137,19 +139,7 @@ impl ChatMessage {
     }
 }
 
-impl Clone for ChatMessage
-    where String: Clone {
-    fn clone(&self) -> Self {
-        ChatMessage { username: self.username.clone(), message: self.message.clone() }
-    }
-}
-
-//impl Copy for ChatMessage
-//where str : Copy {
-//
-//}
-
-// Use a queue to hold ChatMessages
+// Use a queue to hold ChatMessages (for extra credit)
 pub struct ChatQueue {
     queue: VecDeque<ChatMessage>
 }
@@ -188,7 +178,6 @@ impl Clone for ChatQueue
 }
 
 // Stream with username
-//#[derive (Clone)]
 pub struct UserStream {
     stream: TcpStream,
     username: String,

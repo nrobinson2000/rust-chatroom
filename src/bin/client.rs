@@ -1,67 +1,34 @@
+// Lab 4: Chatroom
+// Author: Nathan Robinson
+// Chat Client
+
 use std::io::prelude::*;
 use std::net::TcpStream;
-use std::io;
 use std::io::stdin;
-use std::str;
-use std::borrow::Cow;
 use chatroom::ThreadPool;
 
-
 fn main() {
-//    println!("Please enter the IP address of the server.");
-//
-//    let mut input = String::new();
-//    stdin().read_line(&mut input).expect("error: unable to read user input");
-//
-//    println!("{}", input);
-
-    // Client needs to be multi threaded too
-
-    // One thread for sending, one thread for receiving
-
-    // One worker for sending
-    // One worker for receiving
-//    let pool = ThreadPool::new(2);
-//
-//    pool.execute(|| {
-//
-//
-//
-//        //handle_connection(stream);
-//
-//
-//
-//    });
-
-
     // Create socket connection
     let host = "127.0.0.1";
     let port = "7878";
     let address = host.to_owned() + ":" + port;
-    let mut stream = TcpStream::connect(address).unwrap();
+    let stream = TcpStream::connect(address).unwrap();
 
     // Get welcome message from server
-    readFromServer(&stream);
+    read_from_server(&stream);
 
     // Get the username
     let mut name = String::new();
     stdin().read_line(&mut name).expect("error: unable to read user input");
 
     // Send the username to the server
-    sendToServer(&stream, &mut name);
+    send_to_server(&stream, &mut name);
 
     // Get hello message from the server
-    readFromServer(&stream);
+    read_from_server(&stream);
 
     // Reserve two threads for reading and writing
     let pool = ThreadPool::new(2);
-
-//    let read_stream = stream.try_clone().unwrap();
-//
-//    // Spawn reading thread
-//    pool.execute(move || {
-//        read_handler(&read_stream);
-//    });
 
     let write_stream = stream.try_clone().unwrap();
 
@@ -70,24 +37,17 @@ fn main() {
         write_handler(&write_stream);
     });
 
+    let read_stream = stream.try_clone().unwrap();
 
-//    loop {
-//        let mut user_message = String::new();
-//        stdin().read_line(&mut user_message).expect("error: unable to read user input");
-//        sendToServer(&mut stream, &mut user_message);
-//        if user_message.trim() == String::from("{quit}") {
-//            println!("Quitting!");
-//            break;
-//        }
-//    }
-
-
-//    println!("Hello world!");
+    // Spawn reading thread
+    pool.execute(move || {
+        read_handler(&read_stream);
+    });
 }
 
 fn read_handler(mut stream: &TcpStream) {
     loop {
-        readFromServer(&stream);
+        read_from_server(&stream);
     }
 }
 
@@ -98,7 +58,7 @@ fn write_handler(mut stream: &TcpStream) {
     loop {
         let mut user_message = String::new();
         stdin().read_line(&mut user_message).expect("error: unable to read user input");
-        sendToServer(&mut stream, &mut user_message);
+        send_to_server(&mut stream, &mut user_message);
         if user_message.trim() == String::from("{quit}") {
             println!("Quitting!");
             break;
@@ -107,10 +67,10 @@ fn write_handler(mut stream: &TcpStream) {
 }
 
 
-fn readFromServer(mut stream: &TcpStream) -> String {
+fn read_from_server(mut stream: &TcpStream) -> String {
     let mut buffer = [0u8; 1024];
 
-    stream.read(&mut buffer);
+    stream.read(&mut buffer).unwrap();
 
     let mut vecInput = vec![];
     vecInput.extend_from_slice(&buffer);
@@ -124,6 +84,6 @@ fn readFromServer(mut stream: &TcpStream) -> String {
 }
 
 
-fn sendToServer(mut stream: &TcpStream, mut message: &String) {
-    stream.write(message.as_bytes());
+fn send_to_server(mut stream: &TcpStream, message: &String) {
+    stream.write(message.as_bytes()).unwrap();
 }
