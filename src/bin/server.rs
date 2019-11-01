@@ -72,7 +72,7 @@ fn main() {
             let mut temp_username = username.clone();
 
             // Push client object into vector (not working)
-            //add_client(&mut clients,tempStream,tempUsername);
+            //add_client(&mut clients, temp_stream, temp_username);
 
             // Clone the client socket and the client username
             let mut incoming_stream = stream.try_clone().unwrap();

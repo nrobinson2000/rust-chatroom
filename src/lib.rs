@@ -178,6 +178,7 @@ impl Clone for ChatQueue
 }
 
 // Stream with username
+//#[derive (Clone)]
 pub struct UserStream {
     stream: TcpStream,
     username: String,
