@@ -2,10 +2,11 @@
 // Author: Nathan Robinson
 // Chat Client
 
-use std::io::prelude::*;
-use std::net::TcpStream;
-use std::io::stdin;
 use chatroom::ThreadPool;
+use std::io::prelude::*;
+use std::io::stdin;
+use std::net::TcpStream;
+use std::process::exit;
 
 fn main() {
     // Create socket connection
@@ -19,7 +20,9 @@ fn main() {
 
     // Get the username
     let mut name = String::new();
-    stdin().read_line(&mut name).expect("error: unable to read user input");
+    stdin()
+        .read_line(&mut name)
+        .expect("error: unable to read user input");
 
     // Send the username to the server
     send_to_server(&stream, &mut name);
@@ -57,20 +60,24 @@ fn write_handler(mut stream: &TcpStream) {
     //println!("Test!");
     loop {
         let mut user_message = String::new();
-        stdin().read_line(&mut user_message).expect("error: unable to read user input");
+        stdin()
+            .read_line(&mut user_message)
+            .expect("error: unable to read user input");
         send_to_server(&mut stream, &mut user_message);
         if user_message.trim() == String::from("{quit}") {
             println!("Quitting!");
-            break;
+            exit(0);
         }
     }
 }
 
-
 fn read_from_server(mut stream: &TcpStream) -> String {
     let mut buffer = [0u8; 1024];
 
-    stream.read(&mut buffer).unwrap();
+    if stream.read(&mut buffer).unwrap() == 0 {
+        println!("Server stopped!");
+        exit(1);
+    }
 
     let mut vecInput = vec![];
     vecInput.extend_from_slice(&buffer);
@@ -82,7 +89,6 @@ fn read_from_server(mut stream: &TcpStream) -> String {
 
     input
 }
-
 
 fn send_to_server(mut stream: &TcpStream, message: &String) {
     stream.write(message.as_bytes()).unwrap();

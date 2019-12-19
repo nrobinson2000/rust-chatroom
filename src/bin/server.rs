@@ -11,15 +11,15 @@
 extern crate chatroom;
 
 use chatroom::ChatMessage;
-use chatroom::UserStream;
 use chatroom::ThreadPool;
+use chatroom::UserStream;
 
 // Standard Library imports
+use std::borrow::Borrow;
 use std::io::prelude::*;
 use std::net::TcpListener;
 use std::net::TcpStream;
 use std::sync::mpsc;
-use std::borrow::Borrow;
 
 // Maximum number clients allowed to connect to the server
 static MAXIMUM_CLIENTS: usize = 20;
@@ -36,43 +36,51 @@ fn main() {
     // Create Vector of client sockets
     let mut clients = Vec::new();
 
-    // Channel for communication
-    let (tx, rx) = mpsc::channel();
+    // Channels for communication
+    let (chat_tx, chat_rx) = mpsc::channel();
+    let (client_tx, client_rx) = mpsc::channel();
 
     // Dedicated thread for sending to all clients
-    pool.execute(move || {
-        for recv in rx {
-            handle_outgoing_messages(&clients, &recv);
+    pool.execute(move || loop {
+
+        // Add a user to the vector
+        match client_rx.try_recv(){
+            Ok(client) => {
+                add_user(&mut clients, client);
+            }
+            Err(error) => {}
+        }
+
+        // Send a message to all users
+        match chat_rx.try_recv() {
+            Ok(chat) => {
+                handle_outgoing_messages(&clients, &chat);
+            }
+            Err(error) => {}
         }
     });
 
     // Process clients in dedicated threads when they connect
     for stream in listener.incoming() {
-
         // Create reference to client socket
         let mut stream = stream.unwrap();
 
         // Create clone of the MPSC transmitter
-        let tx1 = mpsc::Sender::clone(&tx);
+        let tx1 = mpsc::Sender::clone(&chat_tx);
 
-        // TEST Try to make a reference to clients (not working)
-        // let mut tempClients = clients.clone();
-
-        // TEST Try to add the client (not working)
-        // let mut stream_copy = stream.try_clone().unwrap();
-        // add_client(&mut clients,stream_copy,String::from("test"));
+        // Create clone of the client channel
+        let client_tx1 = mpsc::Sender::clone(&client_tx);
 
         // Spawn the listener thread
         pool.execute(move || {
-
             // Allow client to login and get username
             let username = handle_sign_in(&mut stream);
 
             let mut temp_stream = stream.try_clone().unwrap();
             let mut temp_username = username.clone();
 
-            // Push client object into vector (not working)
-            //add_client(&mut clients, temp_stream, temp_username);
+            // Send new client through channel to be added to vector
+            client_tx1.send(UserStream::new(temp_stream, temp_username));
 
             // Clone the client socket and the client username
             let mut incoming_stream = stream.try_clone().unwrap();
@@ -80,20 +88,6 @@ fn main() {
 
             handle_incoming_messages(&mut incoming_stream, incoming_username, tx1);
         });
-
-        // EXPERIMENTAL CODE
-//        let outgoing_stream = stream.try_clone().unwrap();
-//        let outgoing_messages = messages.clone();
-//        let outgoing_username = username.clone();
-//        pool.execute(move || {
-//           handle_outgoing_messages(&outgoing_stream, outgoing_messages, outgoing_username);
-//        });
-//
-//        let rx1 = rx.borrow();
-//
-//        for try_recv in rx1 {
-//            handle_outgoing_messages(clients.borrow(), &recv);
-//        }
     }
 
     println!("Shutting down.");
@@ -101,6 +95,10 @@ fn main() {
 
 fn add_client(clients: &mut Vec<UserStream>, stream: TcpStream, username: String) {
     clients.push(UserStream::new(stream.try_clone().unwrap(), username));
+}
+
+fn add_user(clients: &mut Vec<UserStream>, user: UserStream) {
+    clients.push(user);
 }
 
 fn handle_sign_in(mut stream: &mut TcpStream) -> String {
@@ -113,7 +111,8 @@ fn handle_sign_in(mut stream: &mut TcpStream) -> String {
 
     println!("{} has joined the chat!", username);
 
-    let hello_message = "Hello ".to_owned() + &username + "! If you ever want to quit, type {quit} to exit.";
+    let hello_message =
+        "Hello ".to_owned() + &username + "! If you ever want to quit, type {quit} to exit.";
     stream.write(hello_message.as_bytes());
 
     return username;
@@ -121,44 +120,36 @@ fn handle_sign_in(mut stream: &mut TcpStream) -> String {
 
 // Process sending messages to clients
 fn handle_outgoing_messages(clients: &[UserStream], mut message: &ChatMessage) {
-    println!("Sending message to all connected clients...");
+    //println!("Sending message to all connected clients...");
 
     // This loop never iterates because clients is never filled
     for client in clients {
-
         // Get reference to client socket
         let mut stream = client.getStream();
-
-        // DEBUG (not working)
-        // println!("Sending to {}", client.getUsername().borrow());
-
-        // TEST
-        send_to_client(&stream, String::from("TEST"));
-
         // Try to get username of client (not working)
-        // let username = client.getUsername();
-        // Dummy
-        let username = String::new();
+        let username = &client.username;
 
         // Get username of message, and contents of message
         let message_username = message.clone().getUsername();
         let message_contents = message.clone().getMessage();
 
         // Only send packet to clients other than the originating user client
-        if String::from(username.clone()) != message_username {
-
+        if String::from(username) != message_username {
             // Create message packet to send to client
             let mut sent_message = String::new();
+            sent_message.push_str("[");
             sent_message.push_str(message_username.borrow());
-            sent_message.push_str(message_username.borrow());
+            sent_message.push_str("]");
+            sent_message.push_str(": ");
+            sent_message.push_str(message_contents.borrow());
 
             // DEBUG
-            println!("Sending {} to {}", sent_message, username);
+            //println!("Sending {} to {}", sent_message, username);
 
             send_to_client(&stream, sent_message);
         }
     }
-    println!("Finished sending.");
+    //println!("Finished sending.");
 }
 
 // Send packet to client
@@ -167,7 +158,11 @@ fn send_to_client(mut stream: &TcpStream, message: String) {
 }
 
 // Process receiving messages from clients
-fn handle_incoming_messages(mut stream: &mut TcpStream, username: String, tx: mpsc::Sender<ChatMessage>) {
+fn handle_incoming_messages(
+    mut stream: &mut TcpStream,
+    username: String,
+    tx: mpsc::Sender<ChatMessage>,
+) {
     loop {
         // Get a message from the client
         let message = get_client_message(&mut stream);

@@ -29,6 +29,21 @@ To run the client application you can do:
 cargo run --bin client
 ```
 
+## Update
+
+I have fixed my implementation of the chatroom. The **Known Issues** and **Conclusion** can be disregarded.
+
+In order to fix my chatroom I found that I could use an additional Multi-producer, single-consumer channel to allow
+incoming client threads to send `UserStream` objects to the main outgoing thread so that the main thread may store and iterate through the
+streams in the `clients` vector.
+
+Now, when multiple clients are connected, every message sent from a client is relayed by the server to all clients but
+the client that originally sent the message.
+
+I am glad that I could get this to work. Using Rust to implement this lab was certainly more challenging than
+implementing it with Python. I'd like to develop more with Rust in the future.
+
+
 ## Known Issues
 While the server can accept client connections and messages it is currently unable to relay messages
 to clients.

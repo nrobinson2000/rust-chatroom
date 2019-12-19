@@ -5,6 +5,7 @@
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 
+use std::borrow::Borrow;
 use std::collections::VecDeque;
 use std::net::TcpStream;
 
@@ -43,8 +44,8 @@ impl ThreadPool {
     }
 
     pub fn execute<F>(&self, f: F)
-        where
-            F: FnOnce() + Send + 'static
+    where
+        F: FnOnce() + Send + 'static,
     {
         let job = Box::new(f);
 
@@ -64,7 +65,6 @@ impl Drop for ThreadPool {
         //println!("Shutting down all workers.");
 
         for worker in &mut self.workers {
-
             // DEBUG
             //println!("Shutting down worker {}", worker.id);
 
@@ -81,8 +81,7 @@ struct Worker {
 }
 
 impl Worker {
-    fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Message>>>) ->
-    Worker {
+    fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Message>>>) -> Worker {
         let thread = thread::spawn(move || {
             loop {
                 let message = receiver.lock().unwrap().recv().unwrap();
@@ -92,7 +91,6 @@ impl Worker {
                         // println!("Worker {} got a job; executing.", id);
 
                         job.call_box();
-
 
                         //println!("Worker {} completed job", id);
                     }
@@ -141,12 +139,14 @@ impl ChatMessage {
 
 // Use a queue to hold ChatMessages (for extra credit)
 pub struct ChatQueue {
-    queue: VecDeque<ChatMessage>
+    queue: VecDeque<ChatMessage>,
 }
 
 impl ChatQueue {
     pub fn new() -> ChatQueue {
-        ChatQueue { queue: VecDeque::new() }
+        ChatQueue {
+            queue: VecDeque::new(),
+        }
     }
 
     pub fn enqueue(&mut self, message: ChatMessage) {
@@ -171,9 +171,13 @@ impl ChatQueue {
 }
 
 impl Clone for ChatQueue
-    where VecDeque<ChatMessage>: Clone {
+where
+    VecDeque<ChatMessage>: Clone,
+{
     fn clone(&self) -> Self {
-        ChatQueue { queue: self.queue.clone() }
+        ChatQueue {
+            queue: self.queue.clone(),
+        }
     }
 }
 
@@ -181,7 +185,7 @@ impl Clone for ChatQueue
 //#[derive (Clone)]
 pub struct UserStream {
     stream: TcpStream,
-    username: String,
+    pub username: String,
 }
 
 impl UserStream {
